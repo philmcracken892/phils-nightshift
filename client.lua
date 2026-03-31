@@ -1,14 +1,12 @@
 local NPCS = {}
 local spawnedLocations = {}
 
--- Cleanup on resource stop
 AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         CleanupAllNPCs()
     end
 end)
 
--- Cleanup on player disconnect/server restart
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         CleanupAllNPCs()
@@ -38,8 +36,22 @@ function CleanupAllNPCs()
     end
 end
 
+function GetNPCModel(location, npcPosition)
+    -- If position has specific model, use it
+    if npcPosition.model then
+        return npcPosition.model
+    end
+    
+    -- If location forces random, use random
+    if location.useRandomModels then
+        return Config.NPCModels[math.random(#Config.NPCModels)]
+    end
+    
+    -- If position has no model, use random
+    return Config.NPCModels[math.random(#Config.NPCModels)]
+end
+
 Citizen.CreateThread(function()
-    -- Initial cleanup on script start
     Citizen.Wait(1000)
     CleanupAllNPCs()
     
@@ -77,7 +89,7 @@ function SpawnNPCsForLocation(location, locationIndex)
     for i = 1, maxNPCs do
         local destinationPos = location.npcPositions[i]
         local spawnPos = location.coords
-        local model = Config.NPCModels[math.random(#Config.NPCModels)]
+        local model = GetNPCModel(location, destinationPos)
         
         local npc = CreateNPC(model, spawnPos, destinationPos, locationIndex, i)
         if npc then
@@ -226,7 +238,6 @@ if Config.Debug then
     end)
 end
 
--- Export for other resources
 function GetDayShiftLocations()
     return Config.Locations
 end
