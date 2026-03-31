@@ -9,6 +9,14 @@ Config.Locations = {
            
         }
     },
+	{
+        name = "Valentine Store",
+        coords = vector3(-328.64, 814.97, 117.4),
+        npcPositions = {
+            { x = -324.14, y = 803.61, z = 117.88, heading = 300.69 },
+           
+        }
+    },
 }
 
 Config.SpawnSettings = {
@@ -20,15 +28,16 @@ Config.SpawnSettings = {
 }
 
 Config.NPCModels = {
-    `A_M_M_RANCHER_01`,
+	`cs_fishcollector`,
+	
     
     
 }
 
 Config.Schedule = {
     enabled = true,
-    nightStartHour = 18,
-    dayStartHour = 6,
+    dayStartHour = 6,           -- NPCs spawn (6 AM)
+    nightStartHour = 23,        -- NPCs leave (11 PM)
 }
 
 Config.Debug = false  
