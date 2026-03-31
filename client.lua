@@ -1,7 +1,48 @@
 local NPCS = {}
 local spawnedLocations = {}
 
+-- Cleanup on resource stop
+AddEventHandler('onResourceStop', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        CleanupAllNPCs()
+    end
+end)
+
+-- Cleanup on player disconnect/server restart
+AddEventHandler('onResourceStart', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        CleanupAllNPCs()
+    end
+end)
+
+function CleanupAllNPCs()
+    if Config.Debug then
+        print("[DayShift] Cleaning up all NPCs...")
+    end
+    
+    for locationIndex, npcs in pairs(spawnedLocations) do
+        for _, npcData in ipairs(npcs) do
+            if DoesEntityExist(npcData.ped) then
+                DeleteEntity(npcData.ped)
+                if Config.Debug then
+                    print("[DayShift] Deleted NPC from location: " .. locationIndex)
+                end
+            end
+        end
+    end
+    
+    spawnedLocations = {}
+    
+    if Config.Debug then
+        print("[DayShift] Cleanup complete")
+    end
+end
+
 Citizen.CreateThread(function()
+    -- Initial cleanup on script start
+    Citizen.Wait(1000)
+    CleanupAllNPCs()
+    
     while true do
         local hour = GetClockHours()
         local isDay = (hour >= Config.Schedule.dayStartHour and hour < Config.Schedule.nightStartHour)
@@ -77,7 +118,8 @@ function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
         SetPedFleeAttributes(ped, 0, false)
         SetPedCombatAttributes(ped, 17, true)
         SetPedCanBeTargetted(ped, false)
-        Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
+		Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
+        
         TaskGoToCoordAnyMeans(ped, destinationPos.x, destinationPos.y, destinationPos.z, 1.0, 0, false, 786603, 0)
         
         local pedToWatch = ped
@@ -184,6 +226,13 @@ if Config.Debug then
     end)
 end
 
+-- Export for other resources
 function GetDayShiftLocations()
     return Config.Locations
 end
+
+-- Command to manually cleanup (admin use)
+RegisterCommand('dayshiftcleanup', function()
+    CleanupAllNPCs()
+    print("[DayShift] Manual cleanup executed")
+end, false)
