@@ -231,8 +231,3 @@ function GetDayShiftLocations()
     return Config.Locations
 end
 
--- Command to manually cleanup (admin use)
-RegisterCommand('dayshiftcleanup', function()
-    CleanupAllNPCs()
-    print("[DayShift] Manual cleanup executed")
-end, false)
