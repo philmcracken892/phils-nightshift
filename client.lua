@@ -4,9 +4,9 @@ local spawnedLocations = {}
 Citizen.CreateThread(function()
     while true do
         local hour = GetClockHours()
-        local isNight = (hour >= Config.Schedule.nightStartHour or hour < Config.Schedule.dayStartHour)
+        local isDay = (hour >= Config.Schedule.dayStartHour and hour < Config.Schedule.nightStartHour)
         
-        if isNight then
+        if isDay then
             for i, location in ipairs(Config.Locations) do
                 if not spawnedLocations[i] or #spawnedLocations[i] == 0 then
                     SpawnNPCsForLocation(location, i)
@@ -26,7 +26,7 @@ end)
 
 function SpawnNPCsForLocation(location, locationIndex)
     if Config.Debug then
-        print("[NightShift] Spawning NPCs at: " .. location.name)
+        print("[DayShift] Spawning NPCs at: " .. location.name)
     end
     
     spawnedLocations[locationIndex] = {}
@@ -50,7 +50,7 @@ end
 function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
     if not IsModelInCdimage(model) then
         if Config.Debug then
-            print("[NightShift] Model not found: " .. model)
+            print("[DayShift] Model not found: " .. model)
         end
         return nil
     end
@@ -64,7 +64,7 @@ function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
     
     if not HasModelLoaded(model) then
         if Config.Debug then
-            print("[NightShift] Model failed to load: " .. model)
+            print("[DayShift] Model failed to load: " .. model)
         end
         return nil
     end
@@ -77,12 +77,9 @@ function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
         SetPedFleeAttributes(ped, 0, false)
         SetPedCombatAttributes(ped, 17, true)
         SetPedCanBeTargetted(ped, false)
-		Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
-        
-       
+        Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
         TaskGoToCoordAnyMeans(ped, destinationPos.x, destinationPos.y, destinationPos.z, 1.0, 0, false, 786603, 0)
         
-       
         local pedToWatch = ped
         local targetHeading = destinationPos.heading
         local destX, destY, destZ = destinationPos.x, destinationPos.y, destinationPos.z
@@ -92,13 +89,12 @@ function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
                 local coords = GetEntityCoords(pedToWatch)
                 local distance = #(coords - vector3(destX, destY, destZ))
                 
-               
                 if distance < 1.5 then
                     SetEntityHeading(pedToWatch, targetHeading)
                     TaskStandStill(pedToWatch, -1)
                     
                     if Config.Debug then
-                        print("[NightShift] NPC arrived, heading set to: " .. targetHeading)
+                        print("[DayShift] NPC arrived, heading set to: " .. targetHeading)
                     end
                     break
                 end
@@ -108,7 +104,7 @@ function CreateNPC(model, spawnPos, destinationPos, locationIndex, index)
         end)
         
         if Config.Debug then
-            print("[NightShift] NPC spawned, walking to destination")
+            print("[DayShift] NPC spawned, walking to destination")
         end
         
         SetModelAsNoLongerNeeded(model)
@@ -129,7 +125,7 @@ function RemoveNPCsFromLocation(locationIndex)
     if not spawnedLocations[locationIndex] then return end
     
     if Config.Debug then
-        print("[NightShift] Removing NPCs from location index: " .. locationIndex)
+        print("[DayShift] Removing NPCs from location index: " .. locationIndex)
     end
     
     for _, npcData in ipairs(spawnedLocations[locationIndex]) do
@@ -138,8 +134,32 @@ function RemoveNPCsFromLocation(locationIndex)
             TaskGoToCoordAnyMeans(npcData.ped, exitPos.x, exitPos.y, exitPos.z, 1.0, 0, false, 786603, 0)
             
             local pedToDelete = npcData.ped
-            Citizen.SetTimeout(Config.SpawnSettings.removeDelay, function()
+            local exitX, exitY, exitZ = exitPos.x, exitPos.y, exitPos.z
+            
+            Citizen.CreateThread(function()
+                local maxWaitTime = 60000
+                local waited = 0
+                
+                while DoesEntityExist(pedToDelete) and waited < maxWaitTime do
+                    local coords = GetEntityCoords(pedToDelete)
+                    local distance = #(coords - vector3(exitX, exitY, exitZ))
+                    
+                    if distance < 2.0 then
+                        if Config.Debug then
+                            print("[DayShift] NPC reached exit, deleting")
+                        end
+                        DeleteEntity(pedToDelete)
+                        break
+                    end
+                    
+                    Citizen.Wait(500)
+                    waited = waited + 500
+                end
+                
                 if DoesEntityExist(pedToDelete) then
+                    if Config.Debug then
+                        print("[DayShift] NPC timeout, force deleting")
+                    end
                     DeleteEntity(pedToDelete)
                 end
             end)
@@ -154,16 +174,16 @@ if Config.Debug then
         while true do
             Citizen.Wait(5000)
             local hour = GetClockHours()
-            local isNight = (hour >= Config.Schedule.nightStartHour or hour < Config.Schedule.dayStartHour)
+            local isDay = (hour >= Config.Schedule.dayStartHour and hour < Config.Schedule.nightStartHour)
             local npcCount = 0
             for _, loc in pairs(spawnedLocations) do
                 npcCount = npcCount + #loc
             end
-            print("[NightShift] Time: " .. hour .. ":00 - " .. (isNight and "NIGHT" or "DAY") .. " | NPCs: " .. npcCount)
+            print("[DayShift] Time: " .. hour .. ":00 - " .. (isDay and "DAY" or "NIGHT") .. " | NPCs: " .. npcCount)
         end
     end)
 end
 
-function GetNightShiftLocations()
+function GetDayShiftLocations()
     return Config.Locations
 end
